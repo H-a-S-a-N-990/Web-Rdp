@@ -1,13 +1,25 @@
+# Use the official Ubuntu 20.04 base image
 FROM ubuntu:20.04
+
+# Set the environment variable to avoid interactive prompts during package installations
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install necessary packages
 RUN apt-get update && \
-    apt-get install -y novnc websockify && \
-    apt-get clean && \
+    apt-get install -y \
+    x11vnc \
+    xvfb \
+    novnc \
+    websockify \
+    xterm \
+    && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Expose the port on which NoVNC runs (80 inside the container)
-EXPOSE 80
+# Set a password for VNC access (change 'yourpassword' to a secure password)
+RUN x11vnc -storepasswd yourpassword /etc/x11vnc.pass
 
-# Command to run NoVNC
-CMD ["websockify", "--web", "/usr/share/novnc", "80", "localhost:5901"]
+# Expose the ports for NoVNC and VNC
+EXPOSE 80 5900
+
+# Start the VNC server and NoVNC
+CMD ["sh", "-c", "xvfb-run -n 1 -s '-screen 0 1024x768x24' xterm & x11vnc -display :1 -usepw -forever & websockify --web /usr/share/novnc 80 localhost:5900"]
