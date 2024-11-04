@@ -16,10 +16,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Set a password for VNC access (change 'yourpassword' to a secure password)
-RUN x11vnc -storepasswd yourpassword /etc/x11vnc.pass
+RUN mkdir -p /etc/x11vnc && \
+    echo "vcmp" | x11vnc -storepasswd - /etc/x11vnc/passwd
 
 # Expose the ports for NoVNC and VNC
 EXPOSE 80 5900
 
 # Start the VNC server and NoVNC
-CMD ["sh", "-c", "xvfb-run -n 1 -s '-screen 0 1024x768x24' xterm & x11vnc -display :1 -usepw -forever & websockify --web /usr/share/novnc 80 localhost:5900"]
+CMD ["sh", "-c", "xvfb-run -n 1 -s '-screen 0 1024x768x24' xterm & x11vnc -display :1 -usepw -forever -passwdfile /etc/x11vnc/passwd & websockify --web /usr/share/novnc 80 localhost:5900"]
