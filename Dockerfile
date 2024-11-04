@@ -1,26 +1,42 @@
-# Use the official Ubuntu 20.04 base image
+# Use a lightweight Ubuntu image
 FROM ubuntu:20.04
 
-# Set the environment variable to avoid interactive prompts during package installations
+# Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
+ENV USER=root
+ENV PASSWORD=password
+ENV NGROK_AUTH_TOKEN=your_ngrok_auth_token
 
-# Install necessary packages
+# Update and install dependencies
 RUN apt-get update && \
     apt-get install -y \
-    x11vnc \
-    xvfb \
-    novnc \
-    websockify \
-    xterm \
+    xfce4 xfce4-terminal \
+    tightvncserver \
+    dbus-x11 \
+    x11-xserver-utils \
+    wget \
+    supervisor \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Set a password for VNC access (change 'yourpassword' to a secure password)
-RUN mkdir -p /etc/x11vnc && \
-    echo "vcmp" | x11vnc -storepasswd - /etc/x11vnc/passwd
+# Install ngrok
+RUN wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip && \
+    unzip ngrok-stable-linux-amd64.zip && \
+    mv ngrok /usr/local/bin/ngrok && \
+    rm ngrok-stable-linux-amd64.zip
 
-# Expose the ports for NoVNC and VNC
-EXPOSE 80 5900
+# Set up VNC server
+RUN mkdir -p ~/.vnc && \
+    echo "$PASSWORD" | vncpasswd -f > ~/.vnc/passwd && \
+    chmod 600 ~/.vnc/passwd && \
+    echo "startxfce4 &" > ~/.vnc/xstartup && \
+    chmod +x ~/.vnc/xstartup
 
-# Start the VNC server and NoVNC
-CMD ["sh", "-c", "xvfb-run -n 1 -s '-screen 0 1024x768x24' xterm & x11vnc -display :1 -usepw -forever -passwdfile /etc/x11vnc/passwd & websockify --web /usr/share/novnc 80 localhost:5900"]
+# Expose VNC port
+EXPOSE 5901
+
+# Add Supervisor configuration to keep VNC and ngrok running
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Run Supervisor to manage services
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
